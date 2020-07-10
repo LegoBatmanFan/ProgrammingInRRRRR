@@ -1,0 +1,129 @@
+---
+title: "Developing Data Products Assignment #2"
+author: "Lena Horsley"
+date: "2/19/2020"
+#output: html_document
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+## The Assignment
+
+Create a web page presentation using R Markdown that features a plot created with Plotly. Host your webpage on either GitHub Pages, RPubs, or NeoCities. Your webpage must contain:
+
+* the date that you created the document
+* a plot created with Plotly
+
+## Background
+
+* Data set: I discovered the [data set](https://data.cityofchicago.org/Public-Safety/Crimes-2017/d62x-nvdr) used in this assignment while watching the MTV True Crime - [Tragic Accident or Calculated Murder?](http://www.mtv.com/episodes/602t8f/true-life-crime-tragic-accident-or-calculated-murder-season-1-ep-101) episode, which explored the circumstances surrounding the death of Kenneka Jenkins.
+  
+* Graphs/plots: The plots on the following pages are simple explorations of different types of visualizations. Upon hover over of the boxplot, you'll see the date expressed as the number of days since the epoch. For most systems, this date is 1970-01-01. This date is different if the data is imported from Excel on a Mac (1904-01-01 - please see the "Importing Dates from Numeric Format" section of the [Date Formats in R](https://www.r-bloggers.com/date-formats-in-r/) post on the R-bloggers blog)
+
+```{r cars, results='hide'}
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(plotly))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(lubridate))
+suppressPackageStartupMessages(library(data.table))
+
+crimeStatsFrame<- read.csv("./testData/Crimes_-_2017.csv") 
+
+dim(crimeStatsFrame)
+head(crimeStatsFrame)
+
+# Set empty cells to NA ad remove those cells
+sum(is.na(crimeStatsFrame))
+crimeStatsFrame <- replace(crimeStatsFrame, crimeStatsFrame == "", NA)
+sum(is.na(crimeStatsFrame))
+crimeStatsNoNaFrame <- crimeStatsFrame[complete.cases(crimeStatsFrame), ]
+dim(crimeStatsNoNaFrame)
+
+
+# Remove a few rows where rimeStatsFrameNoNa$Primary.Type is "PUBLIC INDECENCY", #"NON-CRIMINAL (SUBJECT SPECIFIED)" or "NON-CRIMINAL"
+crimeStatsNoNaFrame <- crimeStatsNoNaFrame[!crimeStatsNoNaFrame$Primary.Type %in% c("PUBLIC INDECENCY", "NON-CRIMINAL (SUBJECT SPECIFIED)","NON-CRIMINAL"),]
+
+#write.csv(crimeStatsNoNaFrame, "./testData/001_crimeStatsNoNaFrame.csv", row.names = FALSE)
+
+## Remove whitespace
+crimeStatsNoNaFrame$Primary.Type <- gsub('\\s+', '_', crimeStatsNoNaFrame$Primary.Type)
+
+## Change the data frame to a data table
+crimeStatsNoNaDT <- data.table(crimeStatsNoNaFrame)
+dim(crimeStatsNoNaDT)
+sum(is.na(crimeStatsNoNaDT))
+rm(crimeStatsNoNaFrame)
+
+## Change columns (git rid of period)
+names(crimeStatsNoNaDT)[names(crimeStatsNoNaDT) == 'Case.Number'] <- 'CaseNumber'
+names(crimeStatsNoNaDT)[names(crimeStatsNoNaDT) == 'Primary.Type'] <- 'PrimaryType'
+names(crimeStatsNoNaDT)[names(crimeStatsNoNaDT) == 'Location.Description'] <- 'LocationDescription'
+names(crimeStatsNoNaDT)[names(crimeStatsNoNaDT) == 'Community.Area'] <- 'CommunityArea'
+names(crimeStatsNoNaDT)[names(crimeStatsNoNaDT) == 'FBI.Code'] <- 'FBICode'
+names(crimeStatsNoNaDT)
+
+# Remove columns
+colToRemove <- c(1,2, 16,17, 19, 22)
+cleanedCrimeData <- subset(crimeStatsNoNaDT, select= -colToRemove)
+#write.csv(cleanedCrimeData, "./testData/002_cleanedCrimeData.csv")
+class(cleanedCrimeData$Date)
+cleanedCrimeData$datetime <- ymd(as.POSIXct(strptime(as.character(cleanedCrimeData$Date),
+                                format = "%m/%d/%Y")))
+
+head(cleanedCrimeData)
+dim(cleanedCrimeData)
+#write.csv(cleanedCrimeData, "./testData/003_cleanedCrimeData001.csv", row.names = FALSE)
+rm(crimeStatsNoNaDT)
+ 
+class(cleanedCrimeData$PrimaryType)
+class(cleanedCrimeData$datetime)
+
+```
+
+## Box Plot
+```{r boxPlot}
+myPlot <- ggplot(cleanedCrimeData, aes(x=cleanedCrimeData$PrimaryType, y = cleanedCrimeData$datetime, fill=cleanedCrimeData$PrimaryType)) +geom_boxplot() + theme(legend.position="none", axis.text.x = element_text(angle = 45, hjust = 1)) + xlab("Crime") + ylab("Date")
+ggplotly(myPlot)
+```
+
+## Final Data
+```{r finalData, echo=FALSE}
+myCrimeTotals <- cleanedCrimeData %>%
+  group_by(datetime, PrimaryType) %>%
+  summarise(count = dplyr::n()) %>%
+  spread(key = PrimaryType, value = count, fill = 0, drop = FALSE) %>%
+  as.data.frame()
+#write.csv(myCrimeTotals, file = "./testData/004_myCrimeTotalsFinal.csv", row.names = FALSE)
+
+#dim(myCrimeTotals)
+#levels(myCrimeTotals)
+
+plot_ly(myCrimeTotals) %>%
+  add_trace(x = ~datetime, y = ~MOTOR_VEHICLE_THEFT, type="scatter", mode = "markers",
+            name = "Motor Vehicle Theft", legendgroup = "MOTOR_VEHICLE_THEFT") %>%
+  add_trace(x = ~datetime, y = ~BATTERY, type="scatter", mode = "markers",
+            name = "Battery", legendgroup = "BATTERY") %>%
+  add_trace(x = ~datetime, y = ~CRIMINAL_DAMAGE, type="scatter", mode = "markers",
+            name = "Criminal Damage", legendgroup = "CRIMINAL_DAMAGE") %>%
+  add_trace(x = ~datetime, y = ~THEFT, type="scatter", mode = "markers",
+            name = "Theft", legendgroup = "THEFT") %>%
+  add_trace(x = ~datetime, y = ~WEAPONS_VIOLATION, type="scatter", mode = "markers",
+            name = "Weapons Violation", legendgroup = "WEAPONS_VIOLATION") %>%
+  layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "# of Crimes"),
+    colorway = c('#3399ff', '#990099', '#3333cc', '#009900', '#3366ff')
+  )
+rm(cleanedCrimeData)
+```
+
+## Sources
+* [MTV True Crime episode: Tragic Accident or Calculated Murder?](http://www.mtv.com/episodes/602t8f/true-life-crime-tragic-accident-or-calculated-murder-season-1-ep-101)
+* [Chicago Crime Data Portal](https://data.cityofchicago.org/Public-Safety/Crimes-2017/d62x-nvdr)
+* [Plotly R Open Source Graphing Library](https://plot.ly/r/)
+* [Date Formats in R](https://www.r-bloggers.com/date-formats-in-r/)
+* [Date-time Conversion Functions to and from Character](https://astrostatistics.psu.edu/su07/R/html/base/html/strptime.html)
+* [HTML Color Picker](https://www.w3schools.com/colors/colors_picker.asp)

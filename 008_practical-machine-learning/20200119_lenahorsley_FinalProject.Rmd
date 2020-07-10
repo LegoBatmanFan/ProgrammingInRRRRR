@@ -1,0 +1,209 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Lena Horsley"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+    
+### Background
+The dataset used in this project was collected during an experiment measuring exercise activity via sensors placed in and on weight-lifting equipment. 
+There were five different activities performed by the study subjects:
+
+  * Class A: perform a single biceps curl as directed
+  * Class B: move the elbow forward while performing a single curl
+  * Class C: single partial curl – starting with the arm fully extended, the arm is raised 90 degrees
+  * Class D: single partial curl – starting with the arm flexed, the arm is lowed 90 degrees
+  * Class E: leaning back (hips forward)
+
+This project looks at several prediction models in addition to using the provided datasets ([training](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) and [testing](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)) to determine the manner of exercise.
+
+For more information, please refer to the [Weight Lifting Exercises Dataset](http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har#weight_lifting_exercises) section of the [Human Activity Recognition](http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har#weight_lifting_exercises) website. You can also download the assocaited publication [Qualitative Activity Recognition of Weight Lifting Exercises](http://web.archive.org/web/20170519033209/http://groupware.les.inf.puc-rio.br/public/papers/2013.Velloso.QAR-WLE.pdf).
+<br>
+<br>
+
+### Prepare the data
+
+Step 1. Load the libraries and read in the data. Get the dimensions of the raw training and testing sets.
+```{r setUp, echo=TRUE}
+suppressPackageStartupMessages(library(caret))
+suppressPackageStartupMessages(library(gbm))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(randomForest))
+suppressPackageStartupMessages(library(rattle))
+suppressPackageStartupMessages(library(corrplot))
+suppressPackageStartupMessages(library(kernlab))
+suppressPackageStartupMessages(library(rpart))
+suppressPackageStartupMessages(library(rpart.plot))
+suppressPackageStartupMessages(library(knitr))
+
+trainingRaw <- read.csv("./data/pml-training.csv")
+testingRaw <- read.csv("./data/pml-testing.csv")
+dim(trainingRaw)
+dim(testingRaw)
+```
+<br>
+    
+Step 2. Determine the number of NA values, replace "#DIV/0! with NA and remove them. Check the number of NA values again. There should be no NA values in the training and testing sets
+```{r naValues, echo=TRUE}
+
+sum(is.na(trainingRaw))
+sum(is.na(testingRaw))
+
+trainingRaw <- replace(trainingRaw, trainingRaw == "#DIV/0!", NA)
+testingRaw <- replace(testingRaw, testingRaw == "#DIV/0!", NA)
+
+trainingRaw <- trainingRaw[, colSums(is.na(trainingRaw)) == 0]
+testingRaw <- testingRaw[, colSums(is.na(testingRaw)) == 0]
+
+sum(is.na(trainingRaw))
+sum(is.na(testingRaw))
+```
+<br>
+    
+Step 3. Remove the first seven columns from the training and testing sets (not needed to create the model).Check the dimensions (should be very different than the original data sets)
+```{r badColumns, echo=TRUE}
+cleanedTrainingData <- trainingRaw[,-c(1:7)]
+cleanedTestingData <- testingRaw[,-c(1:7)]
+
+dim(cleanedTrainingData)
+dim(cleanedTestingData)
+```
+<br>
+    
+Step 4. Prepare the training data.  Partition the training data into training (70%) and validation sets (30%).
+```{r trainingData, echo=TRUE}
+set.seed(7779311)
+inTrain <- createDataPartition(cleanedTrainingData$classe, p=0.7, list=FALSE)
+myTrainingData <- cleanedTrainingData[inTrain,]
+myValidationData <- cleanedTrainingData[-inTrain,]
+dim(myTrainingData)
+dim(myValidationData)
+```
+<br>   
+
+### Finding the appropriate model
+We'll look at three models:
+
+* GBM
+* Random Forest
+* Decision Tree
+
+##### The GBM model
+```{r gbmModel, echo=TRUE}
+myControl <- trainControl(method="cv", number=5)
+myGbmModel <- train(classe~.,
+                    data=myTrainingData,
+                    method="gbm",
+                    trControl=myControl,
+                    verbose=FALSE)
+myGbmModel
+```
+
+Using the validation set, determine the performance of the GBM model.
+```{r gbmModelPred, echo=TRUE}
+myGbmModelPrediction <- predict(myGbmModel,myValidationData)
+gbmCm <- confusionMatrix(myValidationData$classe, myGbmModelPrediction)
+gbmCm 
+```
+<br>
+    
+##### Random Forest model
+```{r rfModel, echo=TRUE}
+myRfModel <- train(classe~.,
+                    data=myTrainingData,
+                    method="rf",
+                    trControl=myControl,
+                    verbose=FALSE)
+myRfModel
+```
+
+Using the validation set, determine the performance of the Random Forest model.
+```{r myRfModelPred, echo=TRUE}
+myRfModelPrediction <- predict(myRfModel,myValidationData)
+rfCm <- confusionMatrix(myValidationData$classe, myRfModelPrediction)
+rfCm
+```
+<br>   
+
+##### Decision Tree model using rpart
+```{r rpartTreeModel, echo=TRUE}
+myRpartTreeModel <- rpart(classe~.,
+                    data=myTrainingData,
+                    method="class")
+myRpartTreeModelPrediction <- predict(myRpartTreeModel,myValidationData, type = "class")
+rpartTreeCm <- confusionMatrix(myValidationData$classe, myRpartTreeModelPrediction)
+rpartTreeCm
+```
+<br>    
+
+### Discussion
+The low accuracy and high out of sample error were expected for the decision tree model, which is better suited for exploratory analysis. As seen in the table below, the random forest model had the highest accuracy and lowest out of sample error.
+
+```{r outOfSampleError, echo=TRUE}
+
+errorTable <- data.frame(
+ c(
+   as.numeric(gbmCm$overall['Accuracy']),
+   as.numeric(gbmCm$overall['Kappa']),
+   ((1 - as.numeric(gbmCm$overall['Accuracy']))*100)
+   ),
+  c(
+    as.numeric(rfCm$overall['Accuracy']),
+    as.numeric(rfCm$overall['Kappa']),
+    ((1 - as.numeric(rfCm$overall['Accuracy']))*100)
+    ),
+  c(
+    as.numeric(rpartTreeCm$overall['Accuracy']),
+    as.numeric(rpartTreeCm$overall['Kappa']),
+    ((1 - as.numeric(rpartTreeCm$overall['Accuracy']))*100)
+    )
+  )
+colnames(errorTable) <- c(
+  "GBM",
+  "Random Forest",
+  "Tree (rpart)"
+  )
+row.names(errorTable) <- c(
+  "Accuracy",
+  "Kappa",
+  "Out of Sample Error"
+  )
+kable(errorTable)
+```
+
+Accuracy and out of sample error for the GBM model were close to the random forest model. The slightly lower accuracy and higher error may have been due to the sensor data noise (see section 5.2 Recognition Performance in the [paper](http://web.archive.org/web/20170519033209/http://groupware.les.inf.puc-rio.br/public/papers/2013.Velloso.QAR-WLE.pdf)). Performance degradation due to noise is a known drawback of the GBM model.   
+
+As a test I decided to use both models to predict the answers to the quiz. The results (which are the same for both models) are below:
+
+
+##### Random forest
+```{r quizRf, echo=TRUE}
+quizRfAnswer <- predict(myRfModel, cleanedTestingData)
+quizRfAnswer
+```
+<br>    
+
+##### GBM
+```{r quizGbm, echo=TRUE}
+quizGbmAnswer <- predict(myGbmModel, cleanedTestingData)
+quizGbmAnswer
+```
+<br>   
+
+### Appendix
+Decision tree (rpart)
+```{r decisionTree1, echo=TRUE}
+par(mfrow=c(1,2))
+fancyRpartPlot(myRpartTreeModel)
+prp(myRpartTreeModel)
+```
+<br>    
+
+
+

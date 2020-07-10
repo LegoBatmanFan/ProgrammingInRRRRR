@@ -1,0 +1,58 @@
+---
+title: "Developing Data Products - Assignment #1"
+author: "Lena Horsley"
+date: "2/18/2020"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### Assignment
+Using R Markdown, create a web page featuring a map created with Leaflet and hosted on GitHub Pages, RPubs, or NeoCities.
+
+### Data Set Creation
+For this assignment, I decided to create a leaflet map of Pokemon Go landmarks (gyms, nests, habitats, and trainer spots) for several cities in North and South Carolina. These resources were used to create the data set:
+
+* [Pokemon Go Trading Wiki (Pokemon Go Wiki) - North Carolina](https://pkmngotrading.com/wiki/North_Carolina)
+* [Pokemon Go Trading Wiki (Pokemon Go Wiki) - South Carolina](https://pkmngotrading.com/wiki/South_Carolina)
+* [Top Places to Catch Pokémon in Myrtle Beach](https://www.myrtlebeach.com/things-to-do/top-places-to-catch-pokmon-in-myrtle-beach/)
+* [Pokemon Go Gyms in Asheville](http://ashevilleblog.com/pokemon-go-gyms-in-asheville/)
+* [GPS Coordinates](https://www.gps-coordinates.net/)
+
+Each landmark is denoted by a circle marker, where the color is representative of the landmark type. After clicking on the marker, a popup appears containing:
+
+* location name
+* address
+* city and county
+* GPS coordinates
+
+```{r plot1, echo = TRUE}
+suppressPackageStartupMessages(library(leaflet))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(here))
+
+options(digits = 3)
+set.seed(7779311)
+theme_set(theme_minimal())
+pokemon <- here("/testData/NC_SC_PokemonGoData.csv") %>%
+  read_csv()
+head(pokemon)
+pal <- colorFactor(
+  palette = c('red3', 'purple', 'springgreen4','black'),
+  domain = pokemon$type
+)
+
+leaflet(data = pokemon) %>%
+  addTiles() %>%
+  addCircleMarkers(clusterOptions = markerClusterOptions(), 
+                   color = ~pal(type), 
+                   popup = paste(pokemon$location, "<br>",
+                           pokemon$address, "<br>",
+                           pokemon$city, pokemon$county, "<br>",
+                           pokemon$latitude, pokemon$longitude)) %>%
+  addLegend(pal = pal, values = ~type)
+```
+
+

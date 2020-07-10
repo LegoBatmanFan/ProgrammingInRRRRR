@@ -3,14 +3,35 @@ Reposirtory for R programs (Coursera assignments)
 
 
 ### R Programming 
-- Assignment #2			completed: 2014 Sept 16
+- Assignment #2
 
 ### Getting and Cleaning Data 
-- Project 				completed: 2014 Oct 26
+- Final Project
 
 ### Exploratory Data
-- Project #1			completed: 2014 Nov 8
-- Project #2			completed: 2014 Dec 4
+- Project #1	
+- Project #2	
 
 ### Reproducible Research 
-Peer Assessment #1		completed: 2014 Dec 14
+- Peer Assessment #1
+
+### Statistical Inference
+- Class Project, part 1
+- Class Project, part 2
+
+### Regression Models
+- Final Project
+
+### Practical Machine Learning
+- Final Project
+
+### Developing Data Products
+- Assignment #1
+- Assignment #2
+- Assignment #3
+
+
+
+
+
+
