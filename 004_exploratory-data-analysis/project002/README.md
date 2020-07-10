@@ -1,9 +1,4 @@
-# ExploratoryData_Proj002
-
-# ExData_Project002
-
-This repository is for the second project for the Exploratory Data class from Coursera
-
+# Exploratory Data Analysis Project #2
 
 
 ### plot1.R

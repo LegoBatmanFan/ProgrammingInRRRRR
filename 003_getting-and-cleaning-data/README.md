@@ -1,8 +1,7 @@
 
-GettingAndCleaningData
+# Getting And Cleaning Data
 ======================
 
-repository for the course project
 
 From the assignment:
 
