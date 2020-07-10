@@ -1,5 +1,4 @@
-# ProgrammingInRRRRR - Coursera Johns Hopkins Data Science Specialization
-Reposirtory for R programs (Coursera assignments)
+#Coursera Johns Hopkins Data Science Specialization
 
 
 ### R Programming 
